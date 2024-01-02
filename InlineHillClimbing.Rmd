@@ -1,0 +1,343 @@
+---
+title: "Inline Algorithm Hill "
+author: "Natalia Łyś"
+date: "2023-12-31"
+output: html_document
+---
+
+# Funkcja wczytująca dane z pliku CSV
+```{r}
+read_distances_from_csv <- function(file_path) {
+  distances <- read.csv(file_path, header = TRUE, row.names = 1, sep = ";", , dec = ",")
+  return(distances)
+}
+```
+
+# Funkcja obliczająca całkowitą długość trasy na podstawie danych z pliku CSV
+```{r}
+total_distance <- function(route, distances) {
+  total_distance <- 0
+  num_cities <- length(route)
+  for (i in 1:(num_cities - 1)) {
+    total_distance <- total_distance + distances[route[i], route[i + 1]]
+  }
+  total_distance <- total_distance + distances[route[num_cities], route[1]] # powrót do pierwszego miasta
+  return(total_distance)
+}
+```
+
+# Funkcja generująca losową trasę
+```{r}
+random_route <- function(num_cities) {
+  route <- sample(1:num_cities)
+  return(route)
+}
+```
+
+# Algorytm Hill Climbing z wieloma punktami startowymi
+```{r}
+hill_climbing_with_multi_start <- function(distances, num_iterations, num_starts) {
+  num_cities <- nrow(distances)
+  best_route <- NULL
+  best_distance <- Inf
+  # Metody doboru sąsiedztwa
+  neighborhood_functions <- list(
+    # Metoda doboru sąsiedztwa SWAP
+    swap = function(seq) {
+      swap_indices <- sample(1:num_cities, 2)
+      new_seq <- seq
+      new_seq[swap_indices] <- new_seq[c(swap_indices[2], swap_indices[1])]
+      return(new_seq)
+    },
+    # Metoda doboru sąsiedztwa insert 
+    insert = function(seq) {
+      insertion_indices <- sort(sample(1:num_cities, 2))
+      moved_city <- seq[insertion_indices[1]]
+      new_seq <- seq[-insertion_indices[1]]
+      new_seq <- append(new_seq, values = moved_city, after = insertion_indices[2] - 1)
+      return(new_seq)
+    },
+      # Metoda doboru sąsiedztwa reverse 
+    reverse = function(seq) {
+      reverse_indices <- sort(sample(1:num_cities, 2))
+      new_seq <- seq
+      new_seq[reverse_indices[1]:reverse_indices[2]] <- rev(new_seq[reverse_indices[1]:reverse_indices[2]])
+      return(new_seq)
+    }
+  )
+  # Zaczyna w 100 miejscach 
+  for (i in 1:num_starts) {
+    current_route <- random_route(num_cities)
+    current_distance <- total_distance(current_route, distances)
+    # Przechodzi przez 10 000 iteracji 
+    for (j in 1:num_iterations) {
+      neighborhood <- sample(names(neighborhood_functions), 1)
+      new_route <- neighborhood_functions[[neighborhood]](current_route)
+      new_distance <- total_distance(new_route, distances)
+      # Jeśli nowy dystanst jest mniejszy od obecnego, to nowy saje się obecnym 
+      if (new_distance < current_distance) {
+        current_route <- new_route
+        current_distance <- new_distance
+      }
+    }
+    # jeśli aktualny dystans jest mniejszt od najlpeszego, który na początku ustawiany jest na arbitralny w nieskończoności 
+    if (current_distance < best_distance) {
+      best_route <- current_route
+      best_distance <- current_distance
+    }
+  }
+  
+  return(list(route = best_route, distance = best_distance))
+}
+
+
+
+```
+
+# Parametry 
+```{r}
+csv_file_path <- "Dane_TSP_76.csv"
+distances_data <- read_distances_from_csv(csv_file_path)
+max_iterations_per_start <- 10000
+num_starts <- 100
+```
+
+# Implementacja funkcji. Dla każdego z rodzajów generowanego sąsiedztwa możemy zobaczyć wyniki: 
+```{r, eval = FALSE} 
+for (neighborhood_name in c("swap", "insert", "reverse")) {
+  cat("Metoda generowania sąsiedztwa:", neighborhood_name, "\n")
+  result <- hill_climbing_with_multi_start(distances_data, max_iterations_per_start, num_starts)
+  cat("Najlepsza trasa:", result$route, "\n")
+  cat("Długość trasy:", result$distance, "\n\n")
+}
+```
+
+# Wyniki dla 48 miast 
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 13 25 14 34 3 22 16 41 29 2 26 4 35 45 10 24 42 5 48 39 32 21 47 20 33 46 36 30 43 17 27 19 37 6 28 7 18 44 31 38 8 1 9 40 15 12 11 23 
+
+Długość trasy: 10653 
+
+
+
+Metoda generowania sąsiedztwa: insert
+
+Najlepsza trasa: 8 1 9 40 15 12 11 13 25 14 23 3 22 16 41 34 29 2 26 4 35 45 10 24 42 5 48 39 32 21 47 20 33 46 36 30 43 17 27 19 37 6 28 7 18 44 31 38 
+
+Długość trasy: 10628 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 43 30 36 46 33 20 47 21 13 14 25 39 32 48 5 42 24 10 45 35 4 26 2 29 34 41 16 22 3 23 11 12 15 40 9 1 8 38 31 44 18 7 28 6 37 19 27 17 
+
+Długość trasy: 10653 
+
+
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 4 35 45 10 24 42 5 48 39 32 21 13 25 14 23 11 47 20 12 15 33 46 36 30 43 17 27 19 37 6 28 7 18 44 31 38 8 1 9 40 3 22 16 41 34 29 2 26 
+
+Długość trasy: 10648 
+
+
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 1 40 15 12 11 23 13 25 14 34 3 22 16 41 29 2 26 4 35 45 10 24 42 5 48 39 32 21 47 20 33 46 36 30 43 17 27 19 37 6 28 7 18 44 31 38 9 8 
+
+Długość trasy: 10663 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 25 13 11 12 15 40 1 8 9 38 31 44 18 7 28 6 37 19 27 17 43 30 36 46 33 20 47 21 32 39 48 5 42 24 10 45 35 4 26 2 29 34 41 16 22 3 23 14 
+
+Długość trasy: 10638 
+
+
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 5 48 32 39 25 14 13 21 47 20 33 46 36 30 43 17 27 19 37 6 28 7 18 44 31 38 8 1 9 40 15 12 11 23 3 22 16 41 34 29 2 26 4 35 45 10 24 42 
+
+Długość trasy: 10653 
+
+
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 13 11 12 15 40 9 1 8 38 31 44 18 7 28 6 37 19 27 17 43 30 36 46 33 20 47 21 32 39 48 5 42 24 10 45 35 4 26 2 29 34 41 16 22 3 23 14 25 
+
+Długość trasy: 10628 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 5 48 39 32 21 47 20 33 46 36 30 43 17 27 19 37 6 28 7 18 44 31 38 8 1 9 40 15 12 11 13 25 14 23 3 22 16 41 34 29 2 26 4 35 45 10 24 42 
+
+Długość trasy: 10628 
+
+
+
+
+W tym przypadku, gdy miast jest relatywnie mało algorytm nieźle sobie radzi i nawet najlepiej z innych prentowanych w projekcie. Jeszcze na tym etapie dobór generowania sąsiedztwa nie wydaje się bardzo istotny. 
+
+Min: 10 628 Wynik taki osiągnięty został dwa razy przez sąsiedztwo insert i raz przez reverse 
+
+
+# Wyniki dla 76 miast 
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 35 36 37 18 17 11 16 15 14 74 13 12 10 9 7 8 6 4 3 2 75 76 1 23 22 21 25 24 46 45 48 44 47 68 67 70 69 50 49 66 65 71 72 73 64 63 62 61 41 40 60 59 58 57 55 56 51 52 53 54 42 43 28 27 26 29 30 20 5 19 31 32 33 34 39 38 
+
+Długość trasy: 115407 
+
+
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 13 14 74 8 7 5 6 4 3 2 75 76 1 23 22 21 25 24 46 45 44 48 47 69 68 70 67 50 49 53 54 42 43 28 27 26 29 30 31 20 19 32 33 60 59 58 57 56 55 52 51 66 65 71 72 73 64 63 62 61 41 40 39 38 34 35 36 37 18 17 16 15 11 10 9 12 
+
+Długość trasy: 113487.5 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 9 12 74 14 13 15 16 11 17 18 37 36 39 38 35 33 32 30 31 20 19 26 27 29 28 43 42 54 53 52 55 56 57 58 34 40 41 60 59 61 62 63 64 73 72 71 65 66 51 49 50 67 70 68 69 48 44 47 45 46 24 25 21 22 23 1 76 75 2 8 7 6 3 4 5 10 
+
+Długość trasy: 114392.5 
+
+
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 21 25 4 3 5 6 7 8 9 10 20 19 31 30 29 26 27 28 43 53 54 42 32 33 34 35 18 17 11 12 13 14 74 15 16 37 36 38 39 40 41 60 59 61 62 58 57 63 64 73 72 71 65 66 51 56 55 52 49 50 67 70 68 69 47 48 44 45 46 24 22 23 1 76 75 2 
+
+Długość trasy: 114907.9 
+
+
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 8 74 14 13 12 15 16 11 17 37 36 18 9 10 20 19 31 30 29 28 33 32 35 34 38 39 40 41 60 59 58 57 61 62 63 64 73 72 71 65 66 51 56 55 42 43 54 53 52 49 50 67 70 68 69 47 48 44 45 46 27 26 25 21 24 22 23 1 76 75 2 3 4 5 6 7 
+
+Długość trasy: 116317.1 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 35 34 40 41 60 59 58 57 61 62 63 64 73 72 71 65 66 55 56 51 52 49 50 67 70 68 69 47 48 44 45 46 24 20 19 31 30 29 32 33 28 43 42 54 53 27 26 21 25 22 23 1 75 76 2 3 4 5 6 7 8 74 14 13 15 16 12 10 9 11 17 18 37 36 38 39 
+
+Długość trasy: 116284.2 
+
+
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 64 73 72 71 65 66 67 70 68 69 47 48 44 45 46 24 25 21 22 23 1 76 75 2 4 3 7 8 6 5 20 30 31 19 10 9 12 13 14 74 15 16 11 17 18 37 36 35 34 38 39 40 33 32 29 26 27 28 43 42 54 53 49 50 52 51 56 55 57 58 59 41 60 61 62 63 
+
+Długość trasy: 112099.3 
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 20 19 31 30 29 28 43 27 26 25 21 3 4 2 75 76 1 23 22 24 46 45 44 48 47 69 68 70 67 50 66 65 51 49 42 54 53 52 55 56 58 57 63 64 71 72 73 62 61 59 60 41 40 39 38 34 33 32 35 36 37 18 17 16 15 74 14 13 12 11 10 9 8 7 6 5 
+
+Długość trasy: 114806.1 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 55 56 51 66 65 71 72 73 64 63 57 58 62 61 59 60 41 40 39 38 34 33 32 35 36 37 18 17 16 15 74 14 13 12 11 10 9 8 7 6 5 4 3 2 75 76 1 23 22 21 25 24 46 45 48 44 47 69 68 70 67 50 49 52 53 43 28 30 20 19 31 29 26 27 42 54 
+
+Długość trasy: 111860.9 
+
+
+
+MIn: Długość trasy: 111860.9  (reverse)
+Z pary prób wynika, że insert radzi sobie najgorzej z ze znalezieniem najlpeszej trasy, natomiast z wyników trasy z 127 przystankami widzimy, że to nie jest zasada, a zbyt mała ilość przeprowadzonych prób.
+
+# Wyniki dla 127  miast
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 105 16 37 115 13 50 5 57 54 47 55 66 118 46 112 111 107 127 93 103 44 45 94 48 49 53 56 52 124 121 1 2 51 35 40 95 123 97 98 28 25 122 33 29 32 117 76 84 78 80 27 31 12 36 14 41 43 34 42 38 39 30 26 79 18 73 67 70 71 110 86 85 87 88 109 81 126 82 83 101 102 63 119 96 75 69 68 74 77 21 22 4 108 24 23 72 8 9 19 17 20 6 106 7 120 10 100 58 64 113 65 99 92 89 125 104 59 62 61 91 60 116 90 3 11 114 15 
+
+Długość trasy: 152328.6 
+
+
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 34 43 40 44 54 56 5 121 57 103 45 118 46 49 124 52 66 55 47 53 48 94 112 111 107 127 93 95 123 122 28 33 32 29 25 26 27 38 97 98 101 102 83 126 82 81 84 76 78 80 79 77 74 73 8 67 18 22 20 17 21 108 9 15 14 12 36 37 41 35 2 51 50 13 120 7 106 24 23 19 72 4 6 105 1 16 114 11 10 115 3 100 65 99 92 89 104 125 113 64 58 91 61 62 90 116 60 59 71 68 70 69 119 63 96 109 87 88 85 86 110 75 117 31 30 42 39 
+
+Długość trasy: 150140.8 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 92 99 104 85 86 87 110 71 67 58 100 5 56 121 50 120 10 13 115 52 51 2 41 43 30 14 36 37 57 54 45 48 53 94 118 47 49 46 112 111 107 127 93 95 42 40 103 44 35 34 39 38 26 25 33 122 28 123 97 98 101 102 63 119 88 109 96 70 69 75 84 81 83 82 126 32 29 79 80 78 117 76 77 68 73 74 18 21 72 8 23 22 4 6 106 15 108 20 27 31 12 1 16 105 7 114 19 17 24 9 11 3 90 116 62 59 60 61 91 64 113 66 124 55 65 125 89 
+
+Długość trasy: 152427.1 
+
+
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 48 118 46 49 47 94 112 111 107 127 93 42 39 38 34 43 54 45 103 44 40 35 36 37 14 41 30 31 16 2 120 3 90 60 61 91 62 116 11 114 105 15 12 108 8 19 6 106 9 24 4 23 22 20 17 21 72 18 68 69 70 71 109 88 87 86 85 110 96 119 63 82 101 102 83 126 84 81 32 98 97 123 95 122 28 29 33 26 25 27 80 79 78 117 75 76 77 74 73 67 59 104 92 99 89 125 113 65 66 55 58 64 100 10 7 1 5 52 124 56 121 57 13 115 50 51 53 
+
+Długość trasy: 154841.6 
+
+
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 75 70 68 73 67 18 76 78 117 84 81 32 29 33 98 97 123 39 42 40 44 121 56 5 52 124 54 103 45 13 115 114 105 106 4 22 19 72 8 90 116 60 61 91 62 59 71 110 109 96 87 85 86 88 104 125 89 92 99 65 113 66 55 57 49 118 46 48 53 47 94 112 111 107 127 93 95 28 122 25 26 38 34 14 41 36 35 37 43 30 31 27 12 16 2 1 51 50 120 7 10 100 58 64 3 9 11 24 23 108 6 15 20 79 80 77 17 21 74 69 119 63 102 101 83 82 126 
+
+Długość trasy: 153314.5 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 5 121 52 124 47 49 46 118 45 54 57 51 50 2 105 1 16 41 30 14 31 27 26 25 42 43 34 40 103 44 35 37 36 39 38 29 33 122 28 32 78 76 77 74 67 59 104 92 89 65 99 125 113 66 55 53 48 94 112 111 107 127 93 95 123 97 98 83 117 84 81 126 82 101 102 63 119 88 87 96 69 75 70 109 86 85 110 71 68 73 3 10 100 64 58 91 61 60 62 90 116 9 17 108 20 24 19 8 22 4 23 21 72 18 79 80 12 114 11 6 15 106 7 120 13 115 56 
+
+Długość trasy: 154370.5 
+
+
+
+Metoda generowania sąsiedztwa: swap 
+
+Najlepsza trasa: 35 40 93 103 45 44 54 56 50 51 2 7 114 106 108 6 105 37 36 41 14 16 1 13 115 120 10 3 11 64 58 100 90 91 61 60 59 62 116 113 66 55 47 49 53 118 48 46 94 112 111 107 127 123 95 122 28 97 98 81 84 126 83 119 63 102 101 82 117 78 79 80 77 18 19 72 73 74 4 21 17 15 12 27 38 33 32 29 25 26 42 39 34 43 30 31 20 22 24 23 9 8 67 71 70 68 76 75 69 96 109 87 88 86 85 110 104 125 89 92 99 65 52 124 5 121 57 
+
+Długość trasy: 155202.9 
+
+
+
+Metoda generowania sąsiedztwa: insert 
+
+Najlepsza trasa: 123 95 33 122 28 32 29 25 26 27 30 31 21 19 108 4 22 72 73 68 67 116 90 3 120 16 115 10 100 58 91 61 62 60 59 104 125 92 89 99 65 113 66 64 50 40 93 127 107 111 112 94 46 47 53 48 118 49 55 124 52 5 56 121 54 57 51 35 36 44 45 103 43 34 42 39 38 12 14 37 41 105 7 13 2 1 15 24 23 8 11 114 9 6 106 20 17 18 75 69 70 88 87 86 85 110 71 74 77 79 80 76 78 117 84 81 126 83 63 119 96 109 82 102 101 98 97 
+
+Długość trasy: 155002.8 
+
+
+
+Metoda generowania sąsiedztwa: reverse 
+
+Najlepsza trasa: 42 36 16 2 47 53 118 48 49 46 94 112 111 107 127 93 95 123 97 98 101 102 63 119 109 96 88 87 86 85 104 125 65 99 89 92 113 66 55 124 52 13 7 10 1 37 35 51 57 54 56 50 121 5 115 100 58 64 91 61 59 62 60 116 90 3 11 9 19 22 17 21 77 79 80 26 25 33 122 28 29 32 82 83 126 81 84 117 78 76 75 69 68 70 71 110 67 73 74 18 72 8 20 108 15 106 24 23 4 6 105 114 120 14 12 31 27 30 41 40 34 38 39 43 103 45 44 
+
+Długość trasy: 142104.4 
+
+
+W miarę wzrostu liczby miast, różnice między metodami generowania sąsiedztwa stają się bardziej wyraźne. Należy wybrać metodę generowania sąsiedztwa na podstawie konkretnego przypadku i rozmiaru problemu, aby uzyskać optymalne wyniki. W danej próbce nie widać metody generowania sąsiedztwa, która by ewidentwie górowała nad innymi 
